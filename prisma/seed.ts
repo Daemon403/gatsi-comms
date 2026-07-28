@@ -2,9 +2,8 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import crypto from "crypto";
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
-});
+const connectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL!;
+const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
 function hashPassword(password: string): string {
