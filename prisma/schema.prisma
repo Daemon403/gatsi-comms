@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customers Customer[]
+  employees Employee[]
+  orders    Order[]
+  expenses  Expense[]
+
+  @@map("branches")
+}
+
+model Customer {
+  id               String   @id @default(uuid())
+  branchId         String?
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String
+  address          String?
+  notes            String?
+  preferredContact String   @default("SMS")
+  loyaltyPoints    Int      @default(0)
+  totalSpent       Float    @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+  orders Order[]
+
+  @@index([branchId])
+  @@map("customers")
+}
+
+model Employee {
+  id           String   @id @default(uuid())
+  branchId     String?
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  role         String
+  passwordHash String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch   Branch? @relation(fields: [branchId], references: [id])
+  orders   Order[]
+  expenses Expense[]
+
+  @@index([branchId])
+  @@map("employees")
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  category    String
+  description String?
+  basePrice   Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("services")
+}
+
+model Order {
+  id                 String    @id @default(uuid())
+  branchId           String?
+  customerId         String
+  employeeId         String?
+  orderNumber        String    @unique
+  status             String    @default("RECEIVED")
+  expectedCompletion DateTime?
+  completedAt        DateTime?
+  collectedAt        DateTime?
+  notes              String?
+  totalAmount        Float     @default(0)
+  paidAmount         Float     @default(0)
+  paymentStatus      String    @default("UNPAID")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  customer Customer  @relation(fields: [customerId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  items         OrderItem[]
+  payments      Payment[]
+  statusHistory OrderStatusHistory[]
+  notifications Notification[]
+
+  @@index([branchId])
+  @@index([customerId])
+  @@index([employeeId])
+  @@index([orderNumber])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(uuid())
+  orderId      String
+  serviceId    String?
+  garmentType  String
+  description  String?
+  quantity     Int     @default(1)
+  unitPrice    Float
+  totalPrice   Float
+  instructions String?
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([orderId])
+  @@index([serviceId])
+  @@map("order_items")
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  orderId   String
+  amount    Float
+  method    String
+  reference String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  branchId    String?
+  employeeId  String?
+  category    String
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  receipt     String?
+  createdAt   DateTime @default(now())
+
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([branchId])
+  @@index([category])
+  @@index([date])
+  @@map("expenses")
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  status    String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  orderId   String
+  type      String
+  channel   String
+  recipient String?
+  message   String
+  status    String    @default("SENT")
+  sentAt    DateTime?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([type])
+  @@map("notifications")
+}
+
+model InventoryItem {
+  id            String   @id @default(uuid())
+  name          String
+  category      String
+  quantity      Int      @default(0)
+  unit          String
+  minQuantity   Int      @default(0)
+  unitCost      Float
+  supplier      String?
+  lastRestocked DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("inventory_items")
+}
