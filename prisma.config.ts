@@ -1,12 +1,20 @@
-import "dotenv/config";
-import { defineConfig } from "prisma/config";
+import { config } from "dotenv";
+import { defineConfig, env } from "prisma/config";
+
+config({
+  path: ".env.local",
+  override: true,
+  quiet: true,
+});
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
+
   migrations: {
     path: "prisma/migrations",
   },
+
   datasource: {
-    url: process.env["POSTGRES_URL_NON_POOLING"] || process.env["DATABASE_URL"]!,
+    url: env("DATABASE_URL"),
   },
 });
