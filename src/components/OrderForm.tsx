@@ -115,11 +115,15 @@ export default function OrderForm() {
     formData.set('items', JSON.stringify(validItems));
 
     startTransition(async () => {
-      const result = await createOrder(formData);
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        router.push(`/orders/${result.data.id}`);
+      try {
+        const result = await createOrder(formData);
+        if (result.error) {
+          setError(result.error);
+        } else if (result.data) {
+          router.push(`/orders/${result.data.id}`);
+        }
+      } catch {
+        setError('Failed to create order. Check that the server is running.');
       }
     });
   }
