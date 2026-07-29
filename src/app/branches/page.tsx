@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, Building2, MapPin, Phone, Mail, MoreHorizontal } from 'lucide-react';
+import { Plus, Building2, MapPin, Phone, Mail, Pencil, Trash2 } from 'lucide-react';
 import Header from '@/components/Header';
-import { getBranches } from '@/lib/actions/branches';
-import { useEffect, useState } from 'react';
+import { getBranches, deleteBranch } from '@/lib/actions/branches';
+import { useEffect, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Branch {
   id: string;
@@ -16,15 +17,33 @@ interface Branch {
 }
 
 export default function BranchesPage() {
+  const router = useRouter();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  function loadBranches() {
     getBranches().then((result) => {
       if (result.data) setBranches(result.data as Branch[]);
       setLoading(false);
     });
-  }, []);
+  }
+
+  useEffect(loadBranches, []);
+
+  function handleDelete(id: string) {
+    if (!confirm('Are you sure you want to delete this branch?')) return;
+    setDeletingId(id);
+    startTransition(async () => {
+      try {
+        await deleteBranch(id);
+        loadBranches();
+      } finally {
+        setDeletingId(null);
+      }
+    });
+  }
 
   return (
     <div className="flex flex-col">
@@ -73,11 +92,22 @@ export default function BranchesPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-600">
                       <Building2 size={20} />
                     </div>
-                    {!branch.isActive && (
-                      <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-700">
-                        Inactive
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={`/branches/${branch.id}/edit`}
+                        className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                      >
+                        <Pencil size={15} />
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={isPending && deletingId === branch.id}
+                        onClick={() => handleDelete(branch.id)}
+                        className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
                   <h3 className="mb-3 text-base font-bold text-gray-900">{branch.name}</h3>
                   <div className="space-y-2">
