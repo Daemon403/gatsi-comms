@@ -1,9 +1,14 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { createEmployee } from '@/lib/actions/employees';
+
+interface Branch {
+  id: string;
+  name: string;
+}
 
 const ROLES = [
   'Manager',
@@ -20,6 +25,11 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+
+  useEffect(() => {
+    fetch('/api/branches').then(r => r.json()).then(setBranches).catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,11 +37,15 @@ export default function NewEmployeePage() {
     const formData = new FormData(e.currentTarget);
 
     startTransition(async () => {
-      const result = await createEmployee(formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.push('/employees');
+      try {
+        const result = await createEmployee(formData);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          router.push('/employees');
+        }
+      } catch {
+        setError('Failed to create employee. Check that the server is running.');
       }
     });
   }
@@ -121,15 +135,18 @@ export default function NewEmployeePage() {
 
               <div>
                 <label htmlFor="branchId" className="mb-1 block text-sm font-medium text-gray-700">
-                  Branch ID
+                  Branch
                 </label>
-                <input
-                  type="text"
+                <select
                   id="branchId"
                   name="branchId"
-                  placeholder="Optional"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
-                />
+                >
+                  <option value="">No branch</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="sm:col-span-2">
