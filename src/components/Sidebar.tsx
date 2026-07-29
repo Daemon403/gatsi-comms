@@ -17,6 +17,7 @@ import {
   X,
   Sparkles,
   LayoutGrid,
+  Building2,
 } from 'lucide-react';
 
 const navLinks = [
@@ -25,6 +26,7 @@ const navLinks = [
   { href: '/orders', label: 'Orders', icon: ClipboardList },
   { href: '/payments', label: 'Payments', icon: CreditCard },
   { href: '/employees', label: 'Employees', icon: UserCog },
+  { href: '/branches', label: 'Branches', icon: Building2 },
   { href: '/tasks', label: 'Task Board', icon: LayoutGrid },
   { href: '/expenses', label: 'Expenses', icon: Receipt },
   { href: '/inventory', label: 'Inventory', icon: Package },
