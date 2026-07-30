@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { revalidatePath, refresh } from 'next/cache';
 
 export async function getNotifications(orderId?: string) {
   try {
@@ -48,15 +49,15 @@ export async function createNotification(
   }
 }
 
-export async function markAsRead(id: string) {
+export async function markAsRead(id: string): Promise<void> {
   try {
-    const notification = await prisma.notification.update({
+    await prisma.notification.update({
       where: { id },
       data: { readAt: new Date() },
     });
-
-    return { data: notification, error: null };
+    revalidatePath('/');
+    refresh();
   } catch (error) {
-    return { data: null, error: error instanceof Error ? error.message : 'Failed to mark notification as read' };
+    console.error('Failed to mark notification as read:', error);
   }
 }

@@ -115,7 +115,7 @@ export default async function NotificationsPage({ searchParams }: NotificationsP
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {isUnread && (
-                    <form action={async () => { await markAsRead(notification.id); }}>
+                    <form action={markAsRead.bind(null, notification.id)}>
                       <button
                         type="submit"
                         className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
