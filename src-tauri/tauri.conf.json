@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "gatsi-comms",
+  "productName": "GATSI COMMS",
   "version": "0.1.0",
-  "identifier": "com.gatsi-comms.app",
+  "identifier": "com.gatsi.comms.desktop",
   "build": {
-    "frontendDist": "../dist",
+    "frontendDist": "../desktop-loading",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "set DATABASE_URL=postgresql://postgres@localhost:5433/gatsi_comms&& npm run build"
   },
   "app": {
     "windows": [
@@ -16,7 +16,8 @@
         "width": 1280,
         "height": 900,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
@@ -33,8 +34,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "resources": [
+      "resources/postgres/**/*",
+      "resources/nodejs/**/*",
+      "resources/nextjs/**/*"
+    ],
+    "windows": {
+      "wix": null,
+      "nsis": {
+        "installMode": "currentUser"
+      }
     }
   }
 }

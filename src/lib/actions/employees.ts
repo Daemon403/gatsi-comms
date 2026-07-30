@@ -122,3 +122,30 @@ export async function deleteEmployee(id: string) {
     return { error: error instanceof Error ? error.message : 'Failed to delete employee' };
   }
 }
+
+export async function reactivateEmployee(id: string) {
+  try {
+    await prisma.employee.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to reactivate employee' };
+  }
+}
+
+export async function getArchivedEmployees() {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: { isActive: false },
+      include: { branch: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return { data: employees, error: null };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error.message : 'Failed to fetch archived employees' };
+  }
+}

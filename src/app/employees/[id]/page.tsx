@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, Building2, Edit, Trash2, ClipboardList, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import Header from '@/components/Header';
 import StatusBadge from '@/components/StatusBadge';
-import { getEmployee, deleteEmployee } from '@/lib/actions/employees';
+import { getEmployee, deleteEmployee, reactivateEmployee } from '@/lib/actions/employees';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 
 interface Employee {
@@ -58,7 +58,19 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     if (result.error) {
       alert(result.error);
     } else {
-      router.push('/employees');
+      router.refresh();
+      setEmployee({ ...employee, isActive: false });
+    }
+  }
+
+  async function handleReactivate() {
+    if (!employee) return;
+    const result = await reactivateEmployee(employee.id);
+    if (result.error) {
+      alert(result.error);
+    } else {
+      router.refresh();
+      setEmployee({ ...employee, isActive: true });
     }
   }
 
@@ -114,14 +126,25 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               <Edit size={16} />
               Edit
             </Link>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-all hover:bg-rose-50"
-            >
-              <Trash2 size={16} />
-              Deactivate
-            </button>
+            {employee.isActive ? (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-all hover:bg-rose-50"
+              >
+                <Trash2 size={16} />
+                Deactivate
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReactivate}
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-600 transition-all hover:bg-emerald-50"
+              >
+                <CheckCircle size={16} />
+                Reactivate
+              </button>
+            )}
           </div>
         </div>
 
