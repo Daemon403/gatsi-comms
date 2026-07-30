@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import { createCustomer } from '@/lib/actions/customers';
 import { getCurrentEmployee } from '@/lib/actions/auth';
+import CustomerMeasurements from '@/components/CustomerMeasurements';
+import type { Measurements } from '@/components/CustomerMeasurements';
 
 export default function EmployeeNewCustomerPage() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function EmployeeNewCustomerPage() {
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [preferredContact, setPreferredContact] = useState('SMS');
+  const [measurements, setMeasurements] = useState<Measurements>({});
 
   useEffect(() => {
     getCurrentEmployee().then((emp) => {
@@ -45,15 +48,23 @@ export default function EmployeeNewCustomerPage() {
     formData.set('notes', notes);
     formData.set('preferredContact', preferredContact);
 
+    if (Object.keys(measurements).some((k) => measurements[k])) {
+      formData.set('measurements', JSON.stringify(measurements));
+    }
+
     startTransition(async () => {
-      const result = await createCustomer(formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setSuccessMsg('Customer created successfully!');
-        setTimeout(() => {
-          router.push('/employee/orders/new');
-        }, 1500);
+      try {
+        const result = await createCustomer(formData);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setSuccessMsg('Customer created successfully!');
+          setTimeout(() => {
+            router.push('/employee/orders/new');
+          }, 1500);
+        }
+      } catch {
+        setError('Failed to create customer.');
       }
     });
   }
@@ -194,28 +205,32 @@ export default function EmployeeNewCustomerPage() {
                 <option value="EMAIL">Email</option>
               </select>
             </div>
-          </div>
+            </div>
 
-          <div className="mt-6 flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:from-brand-700 hover:to-brand-600 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPending ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <UserPlus size={16} />
-                  Create Customer & Continue to Order
-                </>
-              )}
-            </button>
-            <button
-              type="button"
+            <div className="mt-6">
+              <CustomerMeasurements value={measurements} onChange={setMeasurements} />
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:from-brand-700 hover:to-brand-600 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isPending ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={16} />
+                    Create Customer & Continue to Order
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
               onClick={() => router.back()}
               className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50"
             >

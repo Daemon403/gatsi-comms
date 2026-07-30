@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
 import Header from '@/components/Header';
 import { getCustomer, updateCustomer } from '@/lib/actions/customers';
+import CustomerMeasurements from '@/components/CustomerMeasurements';
+import type { Measurements } from '@/components/CustomerMeasurements';
 
 export default function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
   const [notes, setNotes] = useState('');
   const [preferredContact, setPreferredContact] = useState('SMS');
   const [branchId, setBranchId] = useState('');
+  const [measurements, setMeasurements] = useState<Measurements>({});
 
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
 
@@ -40,6 +43,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
         setNotes(c.notes || '');
         setPreferredContact(c.preferredContact || 'SMS');
         setBranchId(c.branchId || '');
+        setMeasurements((c.measurements || {}) as Measurements);
       } else {
         setError(result.error || 'Customer not found');
       }
@@ -66,13 +70,21 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
     formData.set('preferredContact', preferredContact);
     formData.set('branchId', branchId);
 
+    if (Object.keys(measurements).some((k) => measurements[k])) {
+      formData.set('measurements', JSON.stringify(measurements));
+    }
+
     const { id } = await params;
     startTransition(async () => {
-      const result = await updateCustomer(id, formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.push(`/customers/${id}`);
+      try {
+        const result = await updateCustomer(id, formData);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          router.push(`/customers/${id}`);
+        }
+      } catch {
+        setError('Failed to update customer.');
       }
     });
   }
@@ -226,6 +238,10 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="mt-6">
+            <CustomerMeasurements value={measurements} onChange={setMeasurements} />
           </div>
 
           <div className="mt-6 flex items-center gap-3">

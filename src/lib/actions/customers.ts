@@ -64,9 +64,15 @@ export async function createCustomer(formData: FormData) {
     const notes = (formData.get('notes') as string) || null;
     const preferredContact = (formData.get('preferredContact') as string) || 'SMS';
     const branchId = (formData.get('branchId') as string) || null;
+    const measurementsRaw = (formData.get('measurements') as string) || null;
 
     if (!firstName || !lastName || !phone) {
       return { data: null, error: 'First name, last name, and phone are required' };
+    }
+
+    let measurements = null;
+    if (measurementsRaw) {
+      try { measurements = JSON.parse(measurementsRaw); } catch { /* ignore */ }
     }
 
     const customer = await prisma.customer.create({
@@ -78,6 +84,7 @@ export async function createCustomer(formData: FormData) {
         address,
         notes,
         preferredContact,
+        measurements,
         ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
       },
     });
@@ -97,6 +104,11 @@ export async function updateCustomer(id: string, formData: FormData) {
       if (value !== null) {
         data[field] = value === '' ? null : value;
       }
+    }
+
+    const measurementsRaw = (formData.get('measurements') as string) || null;
+    if (measurementsRaw !== null) {
+      try { data.measurements = JSON.parse(measurementsRaw); } catch { /* ignore */ }
     }
 
     const branchId = formData.get('branchId');

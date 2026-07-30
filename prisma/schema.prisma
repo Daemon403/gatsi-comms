@@ -25,7 +25,7 @@ model Branch {
 }
 
 model Customer {
-  id               String   @id @default(uuid())
+  id               String          @id @default(uuid())
   branchId         String?
   firstName        String
   lastName         String
@@ -33,13 +33,14 @@ model Customer {
   phone            String
   address          String?
   notes            String?
-  preferredContact String   @default("SMS")
-  loyaltyPoints    Int      @default(0)
-  totalSpent       Float    @default(0)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  branch           Branch?  @relation(fields: [branchId], references: [id])
+  measurements     Json?
+  preferredContact String          @default("SMS")
+  loyaltyPoints    Int             @default(0)
+  totalSpent       Float           @default(0)
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  branch           Branch?         @relation(fields: [branchId], references: [id])
   orders           Order[]
 
   @@index([branchId])

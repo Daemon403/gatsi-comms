@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Ruler } from 'lucide-react';
 import Header from '@/components/Header';
 import StatusBadge from '@/components/StatusBadge';
 import CustomerDetailActions from '@/components/CustomerDetailActions';
@@ -190,8 +190,30 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+            </div>
+
+            {customer.measurements && typeof customer.measurements === 'object' && Object.keys(customer.measurements as Record<string, unknown>).some(k => (customer.measurements as Record<string, unknown>)[k]) && (
+              <div className="mt-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100 text-brand-600">
+                    <Ruler size={16} />
+                  </div>
+                  <h3 className="font-bold text-gray-900">Body Measurements</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+                  {Object.entries(customer.measurements as Record<string, string>).map(([key, val]) =>
+                    val ? (
+                      <div key={key}>
+                        <p className="text-xs font-medium capitalize text-gray-500">{key}</p>
+                        <p className="text-sm font-semibold text-gray-900">{val}<span className="text-xs text-gray-400 ml-0.5">in</span></p>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
     </div>
   );
 }

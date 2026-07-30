@@ -4,23 +4,34 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { createCustomer } from '@/lib/actions/customers';
+import CustomerMeasurements from '@/components/CustomerMeasurements';
+import type { Measurements } from '@/components/CustomerMeasurements';
 
 export default function NewCustomerPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [measurements, setMeasurements] = useState<Measurements>({});
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const formData = new FormData(e.currentTarget);
 
+    if (Object.keys(measurements).some((k) => measurements[k])) {
+      formData.set('measurements', JSON.stringify(measurements));
+    }
+
     startTransition(async () => {
-      const result = await createCustomer(formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.push('/customers');
+      try {
+        const result = await createCustomer(formData);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          router.push('/customers');
+        }
+      } catch {
+        setError('Failed to create customer.');
       }
     });
   }
@@ -131,6 +142,10 @@ export default function NewCustomerPage() {
                   <option value="EMAIL">Email</option>
                 </select>
               </div>
+            </div>
+
+            <div className="mt-6">
+              <CustomerMeasurements value={measurements} onChange={setMeasurements} />
             </div>
 
             <div className="mt-6 flex items-center gap-3">
