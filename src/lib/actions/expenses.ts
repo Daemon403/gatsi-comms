@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, refresh } from 'next/cache';
 
 interface ExpenseFilters {
   category?: string;
@@ -77,6 +77,7 @@ export async function createExpense(formData: FormData) {
       },
     });
     revalidatePath('/');
+    refresh();
     return { data: expense, error: null };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : 'Failed to create expense' };
@@ -89,6 +90,7 @@ export async function deleteExpense(id: string) {
       where: { id },
     });
     revalidatePath('/');
+    refresh();
 
     return { error: null };
   } catch (error) {

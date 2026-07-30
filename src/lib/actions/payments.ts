@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { notifyPaymentReceived, notifyPaymentComplete } from '@/lib/notifications';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, refresh } from 'next/cache';
 
 export async function getPayments(orderId?: string) {
   try {
@@ -85,6 +85,7 @@ export async function createPayment(orderId: string, formData: FormData) {
 
     notifyPaymentReceived(orderId, amount, method);
     revalidatePath('/');
+    refresh();
 
     const updatedOrder = await prisma.order.findUnique({ where: { id: orderId } });
     if (updatedOrder && updatedOrder.paymentStatus === 'FULLY_PAID') {
@@ -115,6 +116,7 @@ export async function deletePayment(id: string) {
 
     await recalculateOrderPayment(orderId);
     revalidatePath('/');
+    refresh();
 
     return { error: null };
   } catch (error) {

@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { generateOrderNumber } from '@/lib/utils';
 import { notifyOrderCreated, notifyOrderStatusUpdated } from '@/lib/notifications';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, refresh } from 'next/cache';
 import type { OrderStatus } from '@/lib/types';
 
 interface OrderFilters {
@@ -158,6 +158,7 @@ export async function createOrder(formData: FormData) {
 
     notifyOrderCreated(order.id);
     revalidatePath('/');
+    refresh();
 
     return { data: order, error: null };
   } catch (error) {
@@ -194,6 +195,7 @@ export async function updateOrderStatus(id: string, status: string) {
 
     notifyOrderStatusUpdated(id, status);
     revalidatePath('/');
+    refresh();
 
     return { data: order, error: null };
   } catch (error) {
@@ -221,6 +223,7 @@ export async function deleteOrder(id: string) {
       where: { id },
     });
     revalidatePath('/');
+    refresh();
 
     return { error: null };
   } catch (error) {
