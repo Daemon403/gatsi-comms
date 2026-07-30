@@ -109,7 +109,7 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
 
           {error && (
             <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-              {error}
+              <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed">{error}</pre>
             </div>
           )}
 

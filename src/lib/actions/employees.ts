@@ -73,6 +73,7 @@ export async function createEmployee(formData: FormData) {
 
     return { data: employee, error: null };
   } catch (error) {
+    console.error('createEmployee error:', error);
     return { data: null, error: error instanceof Error ? error.message : 'Failed to create employee' };
   }
 }
