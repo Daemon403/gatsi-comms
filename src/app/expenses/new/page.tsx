@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { createExpense } from '@/lib/actions/expenses';
+import { getEmployees } from '@/lib/actions/employees';
 import { EXPENSE_CATEGORIES } from '@/lib/types';
+import type { Employee } from '@/generated/prisma/client';
 
 export default function NewExpensePage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  useEffect(() => {
+    getEmployees().then((result) => {
+      if (result.data) setEmployees(result.data);
+    });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,15 +111,20 @@ export default function NewExpensePage() {
 
               <div>
                 <label htmlFor="employeeId" className="mb-1 block text-sm font-medium text-gray-700">
-                  Employee ID
+                  Employee
                 </label>
-                <input
-                  type="text"
+                <select
                   id="employeeId"
                   name="employeeId"
-                  placeholder="Optional"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
-                />
+                >
+                  <option value="">None</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.firstName} {emp.lastName}{emp.role ? ` (${emp.role})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

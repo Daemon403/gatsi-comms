@@ -70,8 +70,8 @@ export default function EmployeeNavbar({ employee }: EmployeeNavbarProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-gradient-to-b from-indigo-950 via-indigo-900 to-indigo-800 transition-transform duration-300 lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 z-40 flex w-64 flex-col bg-gradient-to-b from-indigo-950 via-indigo-900 to-indigo-800 transition-[left] duration-300 lg:left-0 ${
+          mobileOpen ? 'left-0' : '-left-64'
         }`}
       >
         {/* Logo */}

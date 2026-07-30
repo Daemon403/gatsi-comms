@@ -95,8 +95,8 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-gradient-sidebar transition-transform duration-300 lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 z-40 flex w-64 flex-col bg-gradient-sidebar transition-[left] duration-300 lg:left-0 ${
+          mobileOpen ? 'left-0' : '-left-64'
         }`}
       >
         <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">

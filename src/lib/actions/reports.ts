@@ -198,7 +198,8 @@ export async function getDashboardStats(branchId?: string) {
 
     const [
       todayOrders,
-      monthlyRevenueResult,
+      monthlyPayments,
+      totalAmountResult,
       monthlyOrderCount,
       pendingPayments,
       activeCustomers,
@@ -212,13 +213,19 @@ export async function getDashboardStats(branchId?: string) {
           createdAt: { gte: todayStart },
         },
       }),
+      prisma.payment.aggregate({
+        where: {
+          createdAt: { gte: monthStart },
+        },
+        _sum: { amount: true },
+      }),
       prisma.order.aggregate({
         where: {
           ...where,
           createdAt: { gte: monthStart },
           status: { not: 'CANCELLED' },
         },
-        _sum: { paidAmount: true },
+        _sum: { totalAmount: true },
       }),
       prisma.order.count({
         where: {
@@ -251,15 +258,13 @@ export async function getDashboardStats(branchId?: string) {
         where,
         _count: { id: true },
       }),
-      prisma.order.findMany({
+      prisma.payment.findMany({
         where: {
-          ...where,
           createdAt: { gte: thirtyDaysAgo },
-          status: { not: 'CANCELLED' },
         },
         select: {
+          amount: true,
           createdAt: true,
-          paidAmount: true,
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -271,21 +276,24 @@ export async function getDashboardStats(branchId?: string) {
     }
 
     const trend: Record<string, number> = {};
-    for (const order of revenueTrend) {
-      const key = new Date(order.createdAt).toISOString().split('T')[0];
-      trend[key] = (trend[key] || 0) + Number(order.paidAmount);
+    for (const payment of revenueTrend) {
+      const key = new Date(payment.createdAt).toISOString().split('T')[0];
+      trend[key] = (trend[key] || 0) + Number(payment.amount);
     }
 
     const trendData = Object.entries(trend).map(([date, revenue]) => ({ date, revenue }));
 
+    const monthlyRevenue = Number(monthlyPayments._sum.amount || 0);
+    const totalOrderValue = Number(totalAmountResult._sum.totalAmount || 0);
+
     return {
       data: {
         todayOrders,
-        monthlyRevenue: Number(monthlyRevenueResult._sum.paidAmount || 0),
+        monthlyRevenue,
         pendingPayments,
         activeCustomers,
         newThisMonth: newCustomersThisMonth,
-        avgOrderValue: monthlyOrderCount > 0 ? Number(monthlyRevenueResult._sum.paidAmount || 0) / monthlyOrderCount : 0,
+        avgOrderValue: monthlyOrderCount > 0 ? totalOrderValue / monthlyOrderCount : 0,
         byStatus,
         revenueTrend: trendData,
       },

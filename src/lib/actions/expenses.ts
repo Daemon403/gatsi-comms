@@ -57,6 +57,13 @@ export async function createExpense(formData: FormData) {
       return { data: null, error: 'Category, description, and valid amount are required' };
     }
 
+    if (employeeId) {
+      const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+      if (!employee) {
+        return { data: null, error: 'Employee not found. Please select a valid employee.' };
+      }
+    }
+
     const expense = await prisma.expense.create({
       data: {
         category,
