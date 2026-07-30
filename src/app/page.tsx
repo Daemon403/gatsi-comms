@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { ClipboardList, DollarSign, Clock, Users, AlertTriangle, TrendingUp, UserPlus, BarChart3, CreditCard, Package, CheckCircle2, Crown, Calendar } from 'lucide-react';
 import Header from '@/components/Header';
 import StatsCard from '@/components/StatsCard';

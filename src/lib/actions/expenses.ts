@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 interface ExpenseFilters {
   category?: string;
@@ -75,6 +76,7 @@ export async function createExpense(formData: FormData) {
         ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
       },
     });
+    revalidatePath('/');
     return { data: expense, error: null };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : 'Failed to create expense' };
@@ -86,6 +88,7 @@ export async function deleteExpense(id: string) {
     await prisma.expense.delete({
       where: { id },
     });
+    revalidatePath('/');
 
     return { error: null };
   } catch (error) {

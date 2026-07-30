@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 export async function getCustomers(search?: string, branchId?: string) {
   try {
@@ -88,6 +89,7 @@ export async function createCustomer(formData: FormData) {
         ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
       },
     });
+    revalidatePath('/');
     return { data: customer, error: null };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : 'Failed to create customer' };
@@ -133,6 +135,7 @@ export async function deleteCustomer(id: string) {
       where: { id },
       data: { isActive: false },
     });
+    revalidatePath('/');
 
     return { error: null };
   } catch (error) {
