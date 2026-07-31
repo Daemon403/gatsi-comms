@@ -7,7 +7,7 @@
     "frontendDist": "../desktop-loading",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "set DATABASE_URL=postgresql://postgres@localhost:5433/gatsi_comms&& npm run build"
+    "beforeBuildCommand": ""
   },
   "app": {
     "windows": [
@@ -35,7 +35,6 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "resources/postgres/**/*",
       "resources/nodejs/**/*",
       "resources/nextjs/**/*"
     ],
