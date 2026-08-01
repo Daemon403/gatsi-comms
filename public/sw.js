@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gatsi-comms-v2';
+const CACHE_NAME = 'gatsi-comms-v3';
 
 const STATIC_ASSETS = [
   '/',
@@ -37,6 +37,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Never cache the service worker itself so updates always reach clients.
+  if (new URL(event.request.url).pathname === '/sw.js') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

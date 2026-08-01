@@ -22,21 +22,27 @@ export default function LoginPage() {
       new URLSearchParams(window.location.search).get('next') || null;
 
     startTransition(async () => {
-      const result = await employeeLogin(email, password);
-      if (result.error || !result.data) {
-        setError(result.error || 'Login failed');
-        return;
-      }
+      try {
+        const result = await employeeLogin(email, password);
+        if (result.error || !result.data) {
+          setError(result.error || 'Login failed');
+          return;
+        }
 
-      const home = getHomeRoute(result.data.accessLevel);
-      const isSafeNext =
-        requestedNext &&
-        requestedNext.startsWith('/') &&
-        !requestedNext.startsWith('//');
-      if (isSafeNext) {
-        router.push(requestedNext);
-      } else {
-        router.push(home);
+        const home = getHomeRoute(result.data.accessLevel);
+        const isSafeNext =
+          requestedNext &&
+          requestedNext.startsWith('/') &&
+          !requestedNext.startsWith('//');
+        if (isSafeNext) {
+          router.push(requestedNext);
+        } else {
+          router.push(home);
+        }
+      } catch {
+        setError(
+          'Unable to sign in. Please refresh the page and try again.'
+        );
       }
     });
   }
