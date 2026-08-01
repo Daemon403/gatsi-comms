@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
+import { requireAccess } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    try {
+      await requireAccess("MANAGER");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const status = message === "Forbidden" ? 403 : 401;
+      return NextResponse.json({ error: message || "Not authenticated" }, { status });
+    }
+
     const { reportType, dateFrom, dateTo } = await request.json();
 
     if (!reportType || !dateFrom || !dateTo) {

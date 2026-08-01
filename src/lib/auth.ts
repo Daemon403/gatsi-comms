@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { getAccessLevel, atLeast } from '@/lib/roles';
+import type { AccessLevel } from '@/lib/roles';
 
 const SESSION_COOKIE = 'employee_session';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'gatsi-comms-secret-key-change-in-production';
@@ -10,6 +12,7 @@ export interface SessionData {
   email: string;
   name: string;
   role: string;
+  accessLevel: AccessLevel;
 }
 
 export function hashPassword(password: string): string {
@@ -42,7 +45,14 @@ export function decryptSessionToken(token: string): SessionData | null {
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    return JSON.parse(decrypted) as SessionData;
+    const parsed = JSON.parse(decrypted) as Partial<SessionData>;
+    return {
+      employeeId: parsed.employeeId || '',
+      email: parsed.email || '',
+      name: parsed.name || '',
+      role: parsed.role || '',
+      accessLevel: parsed.accessLevel || getAccessLevel(parsed.role),
+    };
   } catch {
     return null;
   }
@@ -61,6 +71,7 @@ export async function createSession(employeeId: string): Promise<void> {
     email: employee.email || '',
     name: `${employee.firstName} ${employee.lastName}`,
     role: employee.role,
+    accessLevel: getAccessLevel(employee.role),
   };
 
   const token = createSessionToken(sessionData);
@@ -90,6 +101,18 @@ export async function requireEmployeeSession(): Promise<SessionData> {
   const session = await getSession();
   if (!session) {
     throw new Error('Not authenticated');
+  }
+  return session;
+}
+
+/**
+ * Requires an authenticated session with at least the given access tier.
+ * Throws for unauthenticated or under-privileged requests.
+ */
+export async function requireAccess(minLevel: AccessLevel): Promise<SessionData> {
+  const session = await requireEmployeeSession();
+  if (!atLeast(session.accessLevel, minLevel)) {
+    throw new Error('Forbidden');
   }
   return session;
 }

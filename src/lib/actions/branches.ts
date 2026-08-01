@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { requireAccess } from '@/lib/auth';
 
 export async function getBranches() {
   try {
@@ -25,6 +26,8 @@ export async function getBranch(id: string) {
 
 export async function createBranch(formData: FormData) {
   try {
+    await requireAccess('ADMIN');
+
     const name = formData.get('name') as string;
     const address = (formData.get('address') as string) || null;
     const phone = (formData.get('phone') as string) || null;
@@ -46,6 +49,8 @@ export async function createBranch(formData: FormData) {
 
 export async function updateBranch(id: string, formData: FormData) {
   try {
+    await requireAccess('ADMIN');
+
     const name = formData.get('name') as string;
     const address = (formData.get('address') as string) || null;
     const phone = (formData.get('phone') as string) || null;
@@ -68,6 +73,8 @@ export async function updateBranch(id: string, formData: FormData) {
 
 export async function deleteBranch(id: string) {
   try {
+    await requireAccess('ADMIN');
+
     await prisma.branch.delete({ where: { id } });
     return { error: null };
   } catch (error) {

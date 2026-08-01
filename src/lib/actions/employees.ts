@@ -1,10 +1,12 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, requireAccess } from '@/lib/auth';
 
 export async function getEmployees(branchId?: string) {
   try {
+    await requireAccess('ADMIN');
+
     const where: Record<string, unknown> = { isActive: true };
 
     if (branchId) {
@@ -25,6 +27,8 @@ export async function getEmployees(branchId?: string) {
 
 export async function getEmployee(id: string) {
   try {
+    await requireAccess('ADMIN');
+
     const employee = await prisma.employee.findUnique({
       where: { id },
       include: {
@@ -48,6 +52,8 @@ export async function getEmployee(id: string) {
 
 export async function createEmployee(formData: FormData) {
   try {
+    await requireAccess('ADMIN');
+
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as string;
@@ -80,6 +86,8 @@ export async function createEmployee(formData: FormData) {
 
 export async function updateEmployee(id: string, formData: FormData) {
   try {
+    await requireAccess('ADMIN');
+
     const scalarFields = ['firstName', 'lastName', 'email', 'phone', 'role'];
     const data: Record<string, unknown> = {};
 
@@ -113,6 +121,8 @@ export async function updateEmployee(id: string, formData: FormData) {
 
 export async function deleteEmployee(id: string) {
   try {
+    await requireAccess('ADMIN');
+
     await prisma.employee.update({
       where: { id },
       data: { isActive: false },
@@ -126,6 +136,8 @@ export async function deleteEmployee(id: string) {
 
 export async function reactivateEmployee(id: string) {
   try {
+    await requireAccess('ADMIN');
+
     await prisma.employee.update({
       where: { id },
       data: { isActive: true },
@@ -139,6 +151,8 @@ export async function reactivateEmployee(id: string) {
 
 export async function getArchivedEmployees() {
   try {
+    await requireAccess('ADMIN');
+
     const employees = await prisma.employee.findMany({
       where: { isActive: false },
       include: { branch: true },

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import PWARegister from "@/components/PWARegister";
+import { getCurrentEmployee } from "@/lib/actions/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,11 +44,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let employee = null;
+  try {
+    employee = await getCurrentEmployee();
+  } catch {
+    employee = null;
+  }
+
   return (
     <html
       lang="en"
@@ -55,8 +63,10 @@ export default function RootLayout({
     >
       <body className="h-full bg-[#f8fafc]">
         <div className="flex h-full">
-          <Sidebar />
-          <main className="flex-1 overflow-auto lg:ml-64">{children}</main>
+          {employee ? <Sidebar employee={employee} /> : null}
+          <main className={employee ? "flex-1 overflow-auto lg:ml-64" : "flex-1 overflow-auto"}>
+            {children}
+          </main>
         </div>
         <PWARegister />
       </body>

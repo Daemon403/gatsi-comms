@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/prisma';
 import { verifyPassword, createSession, destroySession, getSession } from '@/lib/auth';
+import { getAccessLevel } from '@/lib/roles';
+import type { AccessLevel } from '@/lib/roles';
 
 export async function employeeLogin(email: string, password: string) {
   try {
@@ -36,6 +38,7 @@ export async function employeeLogin(email: string, password: string) {
         id: employee.id,
         name: `${employee.firstName} ${employee.lastName}`,
         role: employee.role,
+        accessLevel: getAccessLevel(employee.role),
       },
       error: null,
     };
@@ -66,5 +69,10 @@ export async function getCurrentEmployee() {
     },
   });
 
-  return employee;
+  if (!employee) return null;
+
+  return {
+    ...employee,
+    accessLevel: getAccessLevel(employee.role) as AccessLevel,
+  };
 }

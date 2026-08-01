@@ -81,7 +81,9 @@ async function main() {
 
   // Seed employees (all passwords: "password123")
   const defaultPassword = hashPassword("password123");
+  const adminPassword = hashPassword("GatsiAdmin2026");
   const employees = [
+    { id: "emp-admin", firstName: "System", lastName: "Administrator", email: "admin@gatsicomms.com", phone: "(555) 000-0001", role: "Admin", passwordHash: adminPassword },
     { id: "emp-1", firstName: "James", lastName: "Wilson", email: "james@gatsicomms.com", phone: "(555) 201-1001", role: "Manager", passwordHash: defaultPassword },
     { id: "emp-2", firstName: "Sarah", lastName: "Johnson", email: "sarah@gatsicomms.com", phone: "(555) 201-1002", role: "Senior Tailor", passwordHash: defaultPassword },
     { id: "emp-3", firstName: "Michael", lastName: "Brown", email: "michael@gatsicomms.com", phone: "(555) 201-1003", role: "Dry Cleaning Specialist", passwordHash: defaultPassword },
