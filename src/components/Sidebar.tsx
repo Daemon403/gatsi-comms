@@ -20,6 +20,7 @@ import {
   Building2,
   ShoppingCart,
   UserPlus,
+  UserCircle,
   LogOut,
 } from 'lucide-react';
 import { employeeLogout } from '@/lib/actions/auth';
@@ -206,10 +207,18 @@ export default function Sidebar({ employee }: { employee: SidebarEmployee }) {
               </p>
             </div>
           </div>
+          <Link
+            href="/profile"
+            onClick={() => setMobileOpen(false)}
+            className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-indigo-300/60 transition-all hover:bg-white/8 hover:text-white"
+          >
+            <UserCircle size={16} />
+            My Profile
+          </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-indigo-300/60 transition-all hover:bg-white/8 hover:text-white"
+            className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-indigo-300/60 transition-all hover:bg-white/8 hover:text-white"
           >
             <LogOut size={16} />
             Sign Out
