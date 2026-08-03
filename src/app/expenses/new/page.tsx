@@ -3,8 +3,8 @@
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { createExpense } from '@/lib/actions/expenses';
 import { getEmployees } from '@/lib/actions/employees';
+import { submitOp } from '@/lib/offline/sync';
 import { EXPENSE_CATEGORIES } from '@/lib/types';
 import type { Employee } from '@/generated/prisma/client';
 
@@ -12,25 +12,49 @@ export default function NewExpensePage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [offlineSaved, setOfflineSaved] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
-    getEmployees().then((result) => {
-      if (result.data) setEmployees(result.data);
-    });
+    getEmployees()
+      .then((result) => {
+        if (result.data) setEmployees(result.data);
+      })
+      .catch(() => {
+        /* offline — leave list empty */
+      });
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setOfflineSaved(false);
     const formData = new FormData(e.currentTarget);
 
+    const payload = {
+      id: crypto.randomUUID(),
+      branchId: (formData.get('branchId') as string) || null,
+      employeeId: (formData.get('employeeId') as string) || null,
+      category: formData.get('category') as string,
+      description: formData.get('description') as string,
+      amount: parseFloat(formData.get('amount') as string),
+      date: (formData.get('date') as string) || null,
+      receipt: (formData.get('receipt') as string) || null,
+    };
+
     startTransition(async () => {
-      const result = await createExpense(formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.push('/expenses');
+      try {
+        const res = await submitOp('expense.create', payload);
+        if (res.queued) {
+          setOfflineSaved(true);
+          e.currentTarget.reset();
+        } else if (res.result?.error) {
+          setError(res.result.error);
+        } else {
+          router.push('/expenses');
+        }
+      } catch {
+        setError('Failed to create expense. Please try again.');
       }
     });
   }
@@ -47,6 +71,12 @@ export default function NewExpensePage() {
             {error && (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                 {error}
+              </div>
+            )}
+
+            {offlineSaved && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                Expense saved on this device. It will sync to the server when you&apos;re back online.
               </div>
             )}
 

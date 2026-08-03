@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { createCustomer } from '@/lib/actions/customers';
+import { submitOp } from '@/lib/offline/sync';
 import CustomerMeasurements from '@/components/CustomerMeasurements';
 import type { Measurements } from '@/components/CustomerMeasurements';
 
@@ -11,22 +11,40 @@ export default function NewCustomerPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [offlineSaved, setOfflineSaved] = useState(false);
   const [measurements, setMeasurements] = useState<Measurements>({});
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setOfflineSaved(false);
     const formData = new FormData(e.currentTarget);
 
+    const payload: Record<string, unknown> = {
+      id: crypto.randomUUID(),
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      phone: formData.get('phone'),
+      email: (formData.get('email') as string) || null,
+      address: (formData.get('address') as string) || null,
+      notes: (formData.get('notes') as string) || null,
+      preferredContact: (formData.get('preferredContact') as string) || 'SMS',
+      branchId: (formData.get('branchId') as string) || null,
+    };
+
     if (Object.keys(measurements).some((k) => measurements[k])) {
-      formData.set('measurements', JSON.stringify(measurements));
+      payload.measurements = measurements;
     }
 
     startTransition(async () => {
       try {
-        const result = await createCustomer(formData);
-        if (result.error) {
-          setError(result.error);
+        const res = await submitOp('customer.create', payload);
+        if (res.queued) {
+          setOfflineSaved(true);
+          e.currentTarget.reset();
+          setMeasurements({});
+        } else if (res.result?.error) {
+          setError(res.result.error);
         } else {
           router.push('/customers');
         }
@@ -48,6 +66,12 @@ export default function NewCustomerPage() {
             {error && (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                 {error}
+              </div>
+            )}
+
+            {offlineSaved && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                Customer saved on this device. It will sync to the server when you&apos;re back online.
               </div>
             )}
 

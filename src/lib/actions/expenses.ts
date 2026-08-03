@@ -1,7 +1,9 @@
 'use server';
 
+import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath, refresh } from 'next/cache';
+import { createExpenseRecord } from '@/lib/services/expenses';
 
 interface ExpenseFilters {
   category?: string;
@@ -46,35 +48,15 @@ export async function getExpenses(filters: ExpenseFilters = {}) {
 
 export async function createExpense(formData: FormData) {
   try {
-    const branchId = (formData.get('branchId') as string) || null;
-    const employeeId = (formData.get('employeeId') as string) || null;
-    const category = formData.get('category') as string;
-    const description = formData.get('description') as string;
-    const amount = parseFloat(formData.get('amount') as string);
-    const date = formData.get('date') ? new Date(formData.get('date') as string) : new Date();
-    const receipt = (formData.get('receipt') as string) || null;
-
-    if (!category || !description || isNaN(amount) || amount <= 0) {
-      return { data: null, error: 'Category, description, and valid amount are required' };
-    }
-
-    if (employeeId) {
-      const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
-      if (!employee) {
-        return { data: null, error: 'Employee not found. Please select a valid employee.' };
-      }
-    }
-
-    const expense = await prisma.expense.create({
-      data: {
-        category,
-        description,
-        amount,
-        date,
-        receipt,
-        ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
-        ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
-      },
+    const expense = await createExpenseRecord({
+      id: crypto.randomUUID(),
+      branchId: (formData.get('branchId') as string) || null,
+      employeeId: (formData.get('employeeId') as string) || null,
+      category: formData.get('category') as string,
+      description: formData.get('description') as string,
+      amount: parseFloat(formData.get('amount') as string),
+      date: (formData.get('date') as string) || null,
+      receipt: (formData.get('receipt') as string) || null,
     });
     revalidatePath('/');
     refresh();

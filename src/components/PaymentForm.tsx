@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createPayment } from '@/lib/actions/payments';
+import { submitOp } from '@/lib/offline/sync';
 import { formatCurrency } from '@/lib/utils';
 
 interface PaymentFormProps {
@@ -21,6 +21,7 @@ export default function PaymentForm({ orderId, remainingBalance, onPaymentSucces
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('Payment recorded successfully!');
   const [amount, setAmount] = useState(remainingBalance > 0 ? remainingBalance.toString() : '');
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');
@@ -31,18 +32,31 @@ export default function PaymentForm({ orderId, remainingBalance, onPaymentSucces
     setError(null);
     setSuccess(false);
 
-    const formData = new FormData();
-    formData.set('amount', amount);
-    formData.set('method', method);
-    formData.set('reference', reference);
-    formData.set('notes', notes);
-
     startTransition(async () => {
-      const result = await createPayment(orderId, formData);
-      if (result.error) {
-        setError(result.error);
+      const res = await submitOp('payment.create', {
+        id: crypto.randomUUID(),
+        orderId,
+        amount: parseFloat(amount),
+        method,
+        reference,
+        notes,
+      });
+
+      if (res.queued) {
+        setSuccess(true);
+        setSuccessMessage('Payment saved on this device. It will sync when you are back online.');
+        setAmount('');
+        setReference('');
+        setNotes('');
+        setTimeout(() => setSuccess(false), 4000);
+        return;
+      }
+
+      if (res.result?.error) {
+        setError(res.result.error);
       } else {
         setSuccess(true);
+        setSuccessMessage('Payment recorded successfully!');
         setAmount('');
         setReference('');
         setNotes('');
@@ -62,7 +76,7 @@ export default function PaymentForm({ orderId, remainingBalance, onPaymentSucces
 
       {success && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-          Payment recorded successfully!
+          {successMessage}
         </div>
       )}
 

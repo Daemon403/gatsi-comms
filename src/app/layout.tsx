@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import PWARegister from "@/components/PWARegister";
+import SyncStatusBar from "@/components/SyncStatusBarEntry";
 import { getCurrentEmployee } from "@/lib/actions/auth";
 
 const geistSans = Geist({
@@ -65,6 +66,7 @@ export default async function RootLayout({
         <div className="flex h-full">
           {employee ? <Sidebar employee={employee} /> : null}
           <main className={employee ? "flex-1 overflow-auto lg:ml-64" : "flex-1 overflow-auto"}>
+            <SyncStatusBar />
             {children}
           </main>
         </div>

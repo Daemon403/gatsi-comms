@@ -1,9 +1,10 @@
 'use server';
 
+import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
-import { generateOrderNumber } from '@/lib/utils';
-import { notifyOrderCreated, notifyOrderStatusUpdated } from '@/lib/notifications';
 import { revalidatePath, refresh } from 'next/cache';
+import { createOrderRecord, updateOrderStatusRecord } from '@/lib/services/orders';
+import type { OrderItemInput } from '@/lib/services/orders';
 import type { OrderStatus } from '@/lib/types';
 
 interface OrderFilters {
@@ -86,77 +87,21 @@ export async function getOrder(id: string) {
   }
 }
 
-interface OrderItemInput {
-  serviceId?: string;
-  garmentType: string;
-  description?: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  instructions?: string;
-}
-
 export async function createOrder(formData: FormData) {
   try {
-    const customerId = formData.get('customerId') as string;
-    const branchId = (formData.get('branchId') as string) || null;
-    const employeeId = (formData.get('employeeId') as string) || null;
-    const expectedCompletion = (formData.get('expectedCompletion') as string) || null;
-    const notes = (formData.get('notes') as string) || null;
-    const itemsJson = formData.get('items') as string;
+    const itemsRaw = formData.get('items');
+    const items: OrderItemInput[] = itemsRaw ? (JSON.parse(itemsRaw as string) as OrderItemInput[]) : [];
 
-    if (!customerId) {
-      return { data: null, error: 'Customer is required' };
-    }
-
-    if (!itemsJson) {
-      return { data: null, error: 'Order items are required' };
-    }
-
-    const items: OrderItemInput[] = JSON.parse(itemsJson);
-
-    if (items.length === 0) {
-      return { data: null, error: 'At least one item is required' };
-    }
-
-    const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
-    const orderNumber = generateOrderNumber();
-
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        customer: { connect: { id: customerId } },
-        expectedCompletion: expectedCompletion ? new Date(expectedCompletion) : null,
-        notes,
-        totalAmount,
-        status: 'RECEIVED',
-        ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
-        ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
-        items: {
-          create: items.map((item) => ({
-            serviceId: item.serviceId || null,
-            garmentType: item.garmentType,
-            description: item.description || null,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            instructions: item.instructions || null,
-          })),
-        },
-        statusHistory: {
-          create: {
-            status: 'RECEIVED',
-            notes: 'Order created',
-          },
-        },
-      },
-      include: {
-        items: true,
-        statusHistory: true,
-      },
+    const order = await createOrderRecord({
+      id: crypto.randomUUID(),
+      customerId: formData.get('customerId') as string,
+      branchId: (formData.get('branchId') as string) || null,
+      employeeId: (formData.get('employeeId') as string) || null,
+      expectedCompletion: (formData.get('expectedCompletion') as string) || null,
+      notes: (formData.get('notes') as string) || null,
+      items,
     });
 
-    notifyOrderCreated(order.id);
     revalidatePath('/');
     refresh();
 
@@ -168,32 +113,7 @@ export async function createOrder(formData: FormData) {
 
 export async function updateOrderStatus(id: string, status: string) {
   try {
-    const updateData: Record<string, unknown> = { status };
-
-    if (status === 'COLLECTED') {
-      updateData.collectedAt = new Date();
-    }
-
-    if (status === 'READY_FOR_COLLECTION') {
-      updateData.completedAt = new Date();
-    }
-
-    const order = await prisma.order.update({
-      where: { id },
-      data: {
-        ...updateData,
-        statusHistory: {
-          create: {
-            status,
-          },
-        },
-      },
-      include: {
-        statusHistory: { orderBy: { createdAt: 'desc' } },
-      },
-    });
-
-    notifyOrderStatusUpdated(id, status);
+    const order = await updateOrderStatusRecord(id, status);
     revalidatePath('/');
     refresh();
 

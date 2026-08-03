@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Package, Check } from 'lucide-react';
 import StatusBadge from '@/components/StatusBadge';
 import StatusConfirmModal from '@/components/StatusConfirmModal';
 import { useOrderPolling } from '@/hooks/useOrderPolling';
-import { updateOrderStatus } from '@/lib/actions/orders';
+import { submitOp } from '@/lib/offline/sync';
 import { getCurrentEmployee } from '@/lib/actions/auth';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { ORDER_STATUS_FLOW, ORDER_STATUS_LABELS } from '@/lib/types';
@@ -98,8 +98,12 @@ export default function EmployeeOrderDetailPage({ params }: { params: Promise<{ 
     if (!order || !actionTarget) return;
 
     startTransition(async () => {
-      const result = await updateOrderStatus(order.id, actionTarget);
-      if (result.error) {
+      const res = await submitOp('order.status', { orderId: order.id, status: actionTarget });
+      if (res.queued) {
+        setSuccessMsg(`Order marked as ${ORDER_STATUS_LABELS[actionTarget as OrderStatus]} (saved offline — will sync)`);
+        setShowModal(false);
+        setActionTarget(null);
+      } else if (res.result?.error) {
         setShowModal(false);
         setActionTarget(null);
       } else {

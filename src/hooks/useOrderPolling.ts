@@ -12,6 +12,10 @@ export function useOrderPolling(orderId: string) {
   const mountedRef = useRef(true);
 
   const fetchOrder = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (mountedRef.current) setLoading(false);
+      return;
+    }
     const result = await getOrder(orderId);
     if (!mountedRef.current) return;
     if (result.data) {
@@ -31,9 +35,13 @@ export function useOrderPolling(orderId: string) {
       fetchOrder();
     }, POLL_INTERVAL);
 
+    const onOnline = () => fetchOrder();
+    window.addEventListener('online', onOnline);
+
     return () => {
       mountedRef.current = false;
       clearInterval(interval);
+      window.removeEventListener('online', onOnline);
     };
   }, [fetchOrder]);
 

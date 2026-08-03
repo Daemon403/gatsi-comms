@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateOrderStatus } from '@/lib/actions/orders';
+import { submitOp } from '@/lib/offline/sync';
 import { ArrowRight } from 'lucide-react';
 import { ORDER_STATUS_LABELS } from '@/lib/types';
 import type { OrderStatus } from '@/lib/types';
@@ -23,9 +23,12 @@ export default function StatusUpdateButtons({ orderId, orderNumber, currentStatu
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
-      const result = await updateOrderStatus(orderId, nextStatus);
-      if (result.error) {
-        setError(result.error);
+      const res = await submitOp('order.status', { orderId, status: nextStatus });
+      if (res.queued) {
+        setShowModal(false);
+        onStatusUpdated?.();
+      } else if (res.result?.error) {
+        setError(res.result.error);
       } else {
         setShowModal(false);
         onStatusUpdated?.();

@@ -6,7 +6,10 @@ import Header from '@/components/Header';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { getOrders } from '@/lib/actions/orders';
+import { cacheRead, getCachedRead } from '@/lib/offline/queue';
 import { formatCurrency, formatDate } from '@/lib/utils';
+
+type OrderData = NonNullable<Awaited<ReturnType<typeof getOrders>>['data']>;
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -23,26 +26,38 @@ const STATUS_FILTERS = [
 
 export default function OrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderData>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
 
   const fetchData = async (status?: string) => {
     setLoading(true);
-    const result = await getOrders({ status: status || undefined });
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setOrders(result.data ?? []);
+    try {
+      const result = await getOrders({ status: status || undefined });
+      if (result.error) {
+        setError(result.error);
+      } else {
+        const data = result.data ?? [];
+        setOrders(data);
+        if (!status) cacheRead('orders', data);
+      }
+    } catch {
+      // offline — keep last-seen data
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialStatus = params.get('status') ?? '';
     setStatusFilter(initialStatus);
+    if (!initialStatus) {
+      getCachedRead<OrderData>('orders').then((cached) => {
+        if (cached && cached.length > 0) setOrders(cached);
+      });
+    }
     fetchData(initialStatus || undefined);
   }, []);
 

@@ -6,28 +6,41 @@ import Header from '@/components/Header';
 import DataTable from '@/components/DataTable';
 import StatsCard from '@/components/StatsCard';
 import { getExpenses } from '@/lib/actions/expenses';
+import { cacheRead, getCachedRead } from '@/lib/offline/queue';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { EXPENSE_CATEGORIES } from '@/lib/types';
 import { DollarSign } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+type ExpenseData = NonNullable<Awaited<ReturnType<typeof getExpenses>>['data']>;
+
 export default function ExpensesPage() {
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseData>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  const isFiltered = (filters: { category?: string; dateFrom?: string; dateTo?: string }) =>
+    Boolean(filters.category || filters.dateFrom || filters.dateTo);
+
   const fetchData = async (filters: { category?: string; dateFrom?: string; dateTo?: string }) => {
     setLoading(true);
-    const result = await getExpenses(filters);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setExpenses(result.data ?? []);
+    try {
+      const result = await getExpenses(filters);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        const data = result.data ?? [];
+        setExpenses(data);
+        if (!isFiltered(filters)) cacheRead('expenses', data);
+      }
+    } catch {
+      // offline — keep last-seen data
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -38,6 +51,11 @@ export default function ExpensesPage() {
     setCategory(initialCategory);
     setDateFrom(initialDateFrom);
     setDateTo(initialDateTo);
+    if (!initialCategory && !initialDateFrom && !initialDateTo) {
+      getCachedRead<ExpenseData>('expenses').then((cached) => {
+        if (cached && cached.length > 0) setExpenses(cached);
+      });
+    }
     fetchData({
       category: initialCategory || undefined,
       dateFrom: initialDateFrom || undefined,

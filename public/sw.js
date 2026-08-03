@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gatsi-comms-v3';
+const CACHE_NAME = 'gatsi-comms-v4';
 
 const STATIC_ASSETS = [
   '/',
@@ -35,46 +35,93 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+function isStaticAsset(url) {
+  return (
+    /\.(js|css|png|jpe?g|gif|svg|webp|woff2?|ttf|ico)(\?.*)?$/i.test(url.pathname) ||
+    url.pathname === '/manifest.json' ||
+    url.pathname.startsWith('/icons/')
+  );
+}
+
+// Network first: try the network, cache successful responses, fall back to cache when offline.
+function networkFirst(request) {
+  return fetch(request)
+    .then((response) => {
+      if (response && response.ok && response.type === 'basic') {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      }
+      return response;
+    })
+    .catch(() => caches.match(request).then((cached) => cached || null));
+}
+
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  const request = event.request;
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) return;
 
   // Never cache the service worker itself so updates always reach clients.
-  if (new URL(event.request.url).pathname === '/sw.js') {
-    event.respondWith(fetch(event.request));
+  if (url.pathname === '/sw.js') {
+    event.respondWith(fetch(request));
     return;
   }
 
-  if (event.request.mode === 'navigate') {
+  // Writes are handled by the app (offline queue + /api/sync). Never intercept them.
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request).catch(() => new Response('Offline', { status: 503 })));
+    return;
+  }
+
+  // Navigations: network first, fall back to the exact cached page, then to the cached home page.
+  if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-          return response;
-        })
-        .catch(() => caches.match('/'))
+      networkFirst(request).then(
+        (response) =>
+          response ||
+          caches.match('/').then((home) => home || new Response('Offline', { status: 503 }))
+      )
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-
-      return fetch(event.request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-          return response;
+  // API reads (e.g. /api/branches): network first with cache fallback.
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      networkFirst(request).then(
+        (response) => response || new Response(JSON.stringify({ data: null, error: 'Offline' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
         })
-        .catch(() => new Response('Offline', { status: 503 }));
-    })
+      )
+    );
+    return;
+  }
+
+  // Static assets: cache first, then network, cache successes.
+  if (isStaticAsset(url)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request)
+          .then((response) => {
+            if (response && response.ok && response.type === 'basic') {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            }
+            return response;
+          })
+          .catch(() => new Response('Offline', { status: 503 }));
+      })
+    );
+    return;
+  }
+
+  // RSC payloads and anything else: network first with cache fallback for offline navigation.
+  event.respondWith(
+    networkFirst(request).then(
+      (response) => response || new Response('', { status: 200, headers: { 'RSC': '1' } })
+    )
   );
 });

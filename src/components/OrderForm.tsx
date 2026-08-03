@@ -2,10 +2,10 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2, Package } from 'lucide-react';
-import { createOrder } from '@/lib/actions/orders';
+import { Plus, Trash2, Package, UserPlus, Check } from 'lucide-react';
 import { getCustomers } from '@/lib/actions/customers';
 import { getEmployees } from '@/lib/actions/employees';
+import { submitOp } from '@/lib/offline/sync';
 import { SERVICE_CATEGORIES } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 
@@ -47,7 +47,9 @@ export default function OrderForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [offlineSaved, setOfflineSaved] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [localCustomerIds, setLocalCustomerIds] = useState<string[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -55,17 +57,25 @@ export default function OrderForm() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<OrderItem[]>([{ ...EMPTY_ITEM }]);
 
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ firstName: '', lastName: '', phone: '', email: '' });
+  const [newCustomerError, setNewCustomerError] = useState<string | null>(null);
+
   useEffect(() => {
-    getCustomers().then((result) => {
-      if (result.data) {
-        setCustomers(result.data);
-      }
-    });
-    getEmployees().then((result) => {
-      if (result.data) {
-        setEmployees(result.data);
-      }
-    });
+    getCustomers()
+      .then((result) => {
+        if (result.data) setCustomers(result.data);
+      })
+      .catch(() => {
+        /* offline — leave list as-is */
+      });
+    getEmployees()
+      .then((result) => {
+        if (result.data) setEmployees(result.data);
+      })
+      .catch(() => {
+        /* offline — leave list as-is */
+      });
   }, []);
 
   function addItem() {
@@ -90,12 +100,40 @@ export default function OrderForm() {
 
   const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0);
 
+  async function handleAddNewCustomer() {
+    setNewCustomerError(null);
+    const first = newCustomer.firstName.trim();
+    const last = newCustomer.lastName.trim();
+    const phone = newCustomer.phone.trim();
+
+    if (!first || !last || !phone) {
+      setNewCustomerError('First name, last name, and phone are required');
+      return;
+    }
+
+    const customerId = crypto.randomUUID();
+    await submitOp('customer.create', {
+      id: customerId,
+      firstName: first,
+      lastName: last,
+      phone,
+      email: newCustomer.email.trim() || null,
+    });
+
+    setCustomers((prev) => [...prev, { id: customerId, firstName: first, lastName: last, phone }]);
+    setLocalCustomerIds((prev) => [...prev, customerId]);
+    setSelectedCustomerId(customerId);
+    setNewCustomer({ firstName: '', lastName: '', phone: '', email: '' });
+    setShowNewCustomer(false);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setOfflineSaved(false);
 
     if (!selectedCustomerId) {
-      setError('Please select a customer');
+      setError('Please select a customer or add a new one');
       return;
     }
 
@@ -105,28 +143,44 @@ export default function OrderForm() {
       return;
     }
 
-    const formData = new FormData();
-    formData.set('customerId', selectedCustomerId);
-    if (selectedEmployeeId) {
-      formData.set('employeeId', selectedEmployeeId);
-    }
-    formData.set('expectedCompletion', expectedCompletion);
-    formData.set('notes', notes);
-    formData.set('items', JSON.stringify(validItems));
+    const payload = {
+      id: crypto.randomUUID(),
+      customerId: selectedCustomerId,
+      branchId: null,
+      employeeId: selectedEmployeeId || null,
+      expectedCompletion: expectedCompletion || null,
+      notes: notes || null,
+      items: validItems.map(({ garmentType, description, quantity, unitPrice, totalPrice, instructions }) => ({
+        garmentType,
+        description: description || null,
+        quantity,
+        unitPrice,
+        totalPrice,
+        instructions: instructions || null,
+      })),
+    };
 
     startTransition(async () => {
       try {
-        const result = await createOrder(formData);
-        if (result.error) {
-          setError(result.error);
-        } else if (result.data) {
-          router.push(`/orders/${result.data.id}`);
+        const res = await submitOp('order.create', payload);
+        if (res.queued) {
+          setOfflineSaved(true);
+          setItems([{ ...EMPTY_ITEM }]);
+          setNotes('');
+          setExpectedCompletion('');
+        } else if (res.result?.error) {
+          setError(res.result.error);
+        } else if (res.result?.data) {
+          router.push(`/orders/${(res.result.data as { id: string }).id}`);
         }
       } catch {
-        setError('Failed to create order. Check that the server is running.');
+        setError('Failed to create order. Please try again.');
       }
     });
   }
+
+  const inputClass =
+    'w-full rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100';
 
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -139,11 +193,28 @@ export default function OrderForm() {
         </div>
       )}
 
+      {offlineSaved && (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+          <Check size={16} />
+          Order saved on this device. It will sync to the server when you&apos;re back online.
+        </div>
+      )}
+
       <div className="mt-6 mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
-          <label htmlFor="customer" className="mb-1 block text-sm font-medium text-gray-700">
-            Customer *
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="customer" className="block text-sm font-medium text-gray-700">
+              Customer *
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowNewCustomer((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 transition-colors hover:text-brand-700"
+            >
+              <UserPlus size={13} />
+              {showNewCustomer ? 'Cancel new customer' : 'New customer'}
+            </button>
+          </div>
           <select
             id="customer"
             value={selectedCustomerId}
@@ -158,7 +229,57 @@ export default function OrderForm() {
               </option>
             ))}
           </select>
+          {localCustomerIds.includes(selectedCustomerId) && (
+            <p className="mt-1 text-xs text-amber-600">Selected customer was added on this device and is pending sync.</p>
+          )}
         </div>
+
+        {showNewCustomer && (
+          <div className="sm:col-span-2 rounded-xl border border-brand-100 bg-brand-50/50 p-4">
+            <p className="mb-3 text-sm font-semibold text-gray-800">Add a new customer</p>
+            {newCustomerError && (
+              <p className="mb-2 text-xs text-rose-600">{newCustomerError}</p>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <input
+                type="text"
+                placeholder="First name *"
+                value={newCustomer.firstName}
+                onChange={(e) => setNewCustomer({ ...newCustomer, firstName: e.target.value })}
+                className={inputClass}
+              />
+              <input
+                type="text"
+                placeholder="Last name *"
+                value={newCustomer.lastName}
+                onChange={(e) => setNewCustomer({ ...newCustomer, lastName: e.target.value })}
+                className={inputClass}
+              />
+              <input
+                type="tel"
+                placeholder="Phone *"
+                value={newCustomer.phone}
+                onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                className={inputClass}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddNewCustomer}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            >
+              <UserPlus size={15} />
+              Add &amp; Select Customer
+            </button>
+          </div>
+        )}
 
         <div>
           <label htmlFor="employee" className="mb-1 block text-sm font-medium text-gray-700">
@@ -188,7 +309,7 @@ export default function OrderForm() {
             id="expectedCompletion"
             value={expectedCompletion}
             onChange={(e) => setExpectedCompletion(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
+            className={inputClass}
           />
         </div>
       </div>

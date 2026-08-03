@@ -1,8 +1,9 @@
 'use server';
 
+import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
-import { notifyPaymentReceived, notifyPaymentComplete } from '@/lib/notifications';
 import { revalidatePath, refresh } from 'next/cache';
+import { createPaymentRecord, recalculateOrderPayment } from '@/lib/services/payments';
 
 export async function getPayments(orderId?: string) {
   try {
@@ -24,73 +25,19 @@ export async function getPayments(orderId?: string) {
   }
 }
 
-async function recalculateOrderPayment(orderId: string) {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { payments: true },
-  });
-
-  if (!order) return;
-
-  const paidAmount = order.payments.reduce<number>(
-    (sum: number, p: { amount: unknown }) => sum + Number(p.amount),
-    0
-  );
-
-  const totalAmount = Number(order.totalAmount);
-  let paymentStatus: string;
-
-  if (paidAmount <= 0) {
-    paymentStatus = 'UNPAID';
-  } else if (paidAmount >= totalAmount) {
-    paymentStatus = 'FULLY_PAID';
-  } else if (paidAmount >= totalAmount * 0.3) {
-    paymentStatus = 'DEPOSIT_PAID';
-  } else {
-    paymentStatus = 'PARTIALLY_PAID';
-  }
-
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { paidAmount, paymentStatus },
-  });
-}
-
 export async function createPayment(orderId: string, formData: FormData) {
   try {
-    const amount = parseFloat(formData.get('amount') as string);
-    const method = formData.get('method') as string;
-    const reference = (formData.get('reference') as string) || null;
-    const notes = (formData.get('notes') as string) || null;
-
-    if (!amount || amount <= 0) {
-      return { data: null, error: 'Valid payment amount is required' };
-    }
-
-    if (!method) {
-      return { data: null, error: 'Payment method is required' };
-    }
-
-    const payment = await prisma.payment.create({
-      data: {
-        orderId,
-        amount,
-        method,
-        reference,
-        notes,
-      },
+    const payment = await createPaymentRecord({
+      id: crypto.randomUUID(),
+      orderId,
+      amount: parseFloat(formData.get('amount') as string),
+      method: formData.get('method') as string,
+      reference: (formData.get('reference') as string) || null,
+      notes: (formData.get('notes') as string) || null,
     });
 
-    await recalculateOrderPayment(orderId);
-
-    notifyPaymentReceived(orderId, amount, method);
     revalidatePath('/');
     refresh();
-
-    const updatedOrder = await prisma.order.findUnique({ where: { id: orderId } });
-    if (updatedOrder && updatedOrder.paymentStatus === 'FULLY_PAID') {
-      notifyPaymentComplete(orderId);
-    }
 
     return { data: payment, error: null };
   } catch (error) {

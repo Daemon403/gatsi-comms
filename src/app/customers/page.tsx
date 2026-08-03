@@ -6,32 +6,47 @@ import Header from '@/components/Header';
 import DataTable from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { getCustomers } from '@/lib/actions/customers';
+import { cacheRead, getCachedRead } from '@/lib/offline/queue';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+type CustomerData = NonNullable<Awaited<ReturnType<typeof getCustomers>>['data']>;
+
 export default function CustomersPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerData>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const fetchData = async (searchTerm?: string) => {
     setLoading(true);
-    const result = await getCustomers(searchTerm);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setCustomers(result.data ?? []);
+    try {
+      const result = await getCustomers(searchTerm);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        const data = result.data ?? [];
+        setCustomers(data);
+        if (!searchTerm) cacheRead('customers', data);
+      }
+    } catch {
+      // offline — keep last-seen data
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialSearch = params.get('search') ?? '';
     setSearch(initialSearch);
+    if (!initialSearch) {
+      getCachedRead<CustomerData>('customers').then((cached) => {
+        if (cached && cached.length > 0) setCustomers(cached);
+      });
+    }
     fetchData(initialSearch || undefined);
   }, []);
 

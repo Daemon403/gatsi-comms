@@ -6,51 +6,48 @@ import Header from '@/components/Header';
 import StatusBadge from '@/components/StatusBadge';
 import { getOrders } from '@/lib/actions/orders';
 import { getEmployees } from '@/lib/actions/employees';
+import { cacheRead, getCachedRead } from '@/lib/offline/queue';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ORDER_STATUS_FLOW, ORDER_STATUS_LABELS } from '@/lib/types';
 import type { OrderStatus } from '@/lib/types';
 import { User, Clock, DollarSign, GripVertical } from 'lucide-react';
 
-interface Order {
-  id: string;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
-  employeeId: string | null;
-  expectedCompletion: string | null;
-  createdAt: string;
-  customer: { firstName: string; lastName: string; phone: string };
-  employee: { id: string; firstName: string; lastName: string } | null;
-  items: { garmentType: string; quantity: number }[];
-}
-
-interface Employee {
-  id: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
+type OrderData = NonNullable<Awaited<ReturnType<typeof getOrders>>['data']>;
+type EmployeeData = NonNullable<Awaited<ReturnType<typeof getEmployees>>['data']>;
 
 export default function TaskBoardPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [orders, setOrders] = useState<OrderData>([]);
+  const [employees, setEmployees] = useState<EmployeeData>([]);
   const [loading, setLoading] = useState(true);
   const [filterEmployee, setFilterEmployee] = useState('');
 
   useEffect(() => {
     async function loadData() {
-      const [ordersResult, empResult] = await Promise.all([
-        getOrders(),
-        getEmployees(),
-      ]);
-      if (ordersResult.data) {
-        setOrders(ordersResult.data as unknown as Order[]);
+      getCachedRead<OrderData>('orders').then((cached) => {
+        if (cached && cached.length > 0) setOrders(cached);
+      });
+      getCachedRead<EmployeeData>('employees').then((cached) => {
+        if (cached && cached.length > 0) setEmployees(cached);
+      });
+      try {
+        const [ordersResult, empResult] = await Promise.all([
+          getOrders(),
+          getEmployees(),
+        ]);
+        if (ordersResult.data) {
+          setOrders(ordersResult.data);
+          cacheRead('orders', ordersResult.data);
+        }
+        if (empResult.data) {
+          setEmployees(empResult.data);
+          cacheRead('employees', empResult.data);
+        }
+      } catch {
+        // offline — keep last-seen data
+      } finally {
+        setLoading(false);
       }
-      if (empResult.data) {
-        setEmployees(empResult.data as unknown as Employee[]);
-      }
-      setLoading(false);
     }
     loadData();
   }, []);

@@ -1,7 +1,9 @@
 'use server';
 
+import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath, refresh } from 'next/cache';
+import { createCustomerRecord } from '@/lib/services/customers';
 
 export async function getCustomers(search?: string, branchId?: string) {
   try {
@@ -57,37 +59,27 @@ export async function getCustomer(id: string) {
 
 export async function createCustomer(formData: FormData) {
   try {
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
-    const phone = formData.get('phone') as string;
-    const email = (formData.get('email') as string) || null;
-    const address = (formData.get('address') as string) || null;
-    const notes = (formData.get('notes') as string) || null;
-    const preferredContact = (formData.get('preferredContact') as string) || 'SMS';
-    const branchId = (formData.get('branchId') as string) || null;
     const measurementsRaw = (formData.get('measurements') as string) || null;
-
-    if (!firstName || !lastName || !phone) {
-      return { data: null, error: 'First name, last name, and phone are required' };
-    }
-
     let measurements = null;
     if (measurementsRaw) {
-      try { measurements = JSON.parse(measurementsRaw); } catch { /* ignore */ }
+      try {
+        measurements = JSON.parse(measurementsRaw);
+      } catch {
+        /* ignore */
+      }
     }
 
-    const customer = await prisma.customer.create({
-      data: {
-        firstName,
-        lastName,
-        phone,
-        email,
-        address,
-        notes,
-        preferredContact,
-        measurements,
-        ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
-      },
+    const customer = await createCustomerRecord({
+      id: crypto.randomUUID(),
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      phone: formData.get('phone') as string,
+      email: (formData.get('email') as string) || null,
+      address: (formData.get('address') as string) || null,
+      notes: (formData.get('notes') as string) || null,
+      preferredContact: (formData.get('preferredContact') as string) || 'SMS',
+      branchId: (formData.get('branchId') as string) || null,
+      measurements,
     });
     revalidatePath('/');
     refresh();
